@@ -38,14 +38,14 @@ export const dishes: Dish[] = [
 
 export type OrderStatus = "Completed" | "Preparing" | "Pending" | "Cancelled";
 export const orders = Array.from({ length: 24 }, (_, i) => {
-  const d = dishes[i % dishes.length];
+  const d = dishes[i % dishes.length]!;
   const st: OrderStatus[] = ["Completed", "Completed", "Preparing", "Completed", "Pending", "Cancelled"];
   return {
     id: `#ORD-${1040 + i}`,
-    customer: ["Aarav", "Diya", "Kabir", "Meera", "Rohan", "Ananya", "Vihaan", "Sara"][i % 8],
+    customer: ["Aarav", "Diya", "Kabir", "Meera", "Rohan", "Ananya", "Vihaan", "Sara"][i % 8]!,
     dish: d.name,
     amount: d.price * (1 + (i % 3)),
-    status: st[i % st.length],
+    status: st[i % st.length]!,
     time: `${(i % 12) + 1}:${String((i * 7) % 60).padStart(2, "0")} PM`,
   };
 });

@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { Shell, Card, nav } from "@/components/Shell";
-import { orders, dishes, customers, inventory, reviews, categories, trend, inr, type OrderStatus } from "@/lib/data";
+import { orders, dishes, customers, inventory, reviews, categories, trend, inr } from "@/lib/data";
 
 export const Route = createFileRoute("/$section")({
   beforeLoad: ({ params }) => {
@@ -26,7 +26,7 @@ function Section() {
   const { section } = Route.useParams();
   const label = nav.find((n) => n.to === "/" + section)!.label;
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<OrderStatus | "All">("All");
+  const [filter, setFilter] = useState<string>("All");
   const [saved, setSaved] = useState(false);
   const m = (s: string) => s.toLowerCase().includes(q.toLowerCase());
 

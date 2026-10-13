@@ -77,7 +77,7 @@ export function Shell({ title, children, search, onSearch }: { title: string; ch
                 {notes.map((n) => <p key={n} className="rounded-md px-3 py-2 text-sm hover:bg-accent">{n}</p>)}
               </div>
             )}
-            <Link to="/settings"><Settings className="h-5 w-5" /></Link>
+            <Link to="/$section" params={{ section: "settings" }}><Settings className="h-5 w-5" /></Link>
             <div className="flex items-center gap-2">
               <div className="grid h-9 w-9 place-items-center rounded-full bg-accent text-sm font-bold text-primary">CR</div>
               <div className="hidden text-sm sm:block"><p className="font-semibold leading-tight">Chef Rohan</p><p className="text-xs text-muted-foreground">Owner</p></div>

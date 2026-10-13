@@ -41,7 +41,7 @@ export function Shell({ title, children, search, onSearch }: { title: string; ch
         </div>
         <nav className="space-y-1">
           {nav.map(({ to, label, icon: Icon }) => (
-            <Link key={to} to={to} onClick={() => setOpen(false)} activeOptions={{ exact: true }}
+            <Link key={to} {...(to === "/" ? { to: "/" as const } : { to: "/$section" as const, params: { section: to.slice(1) } })} onClick={() => setOpen(false)} activeOptions={{ exact: true }}
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-accent"
               activeProps={{ className: "!bg-primary !text-primary-foreground shadow-glow" }}>
               <Icon className="h-4 w-4" /> {label}

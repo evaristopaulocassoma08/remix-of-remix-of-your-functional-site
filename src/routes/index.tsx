@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { usePersistent } from "@/lib/store";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, Pie, PieChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Calendar, Download, Plus, IndianRupee, ShoppingBag, UserPlus, ShoppingCart, ArrowUp, Crown, Lightbulb, X } from "lucide-react";
+import { Calendar, Download, Plus, Banknote, ShoppingBag, UserPlus, ShoppingCart, ArrowUp, Crown, Lightbulb, X } from "lucide-react";
 import { Shell, Card } from "@/components/Shell";
-import { trend, categories, dishes as seed, inr, type Range, type Dish } from "@/lib/data";
+import { trend, categories, dishes as seed, kz, type Range, type Dish } from "@/lib/data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,7 +23,7 @@ const spark = (s: number) => Array.from({ length: 8 }, (_, i) => ({ v: 3 + Math.
 function Dashboard() {
   const [range, setRange] = useState<Range>("today");
   const [q, setQ] = useState("");
-  const [dishes, setDishes] = useState<Dish[]>(seed);
+  const [dishes, setDishes] = usePersistent<Dish[]>("dishes", seed);
   const [adding, setAdding] = useState(false);
   const [date, setDate] = useState("2026-07-05");
   const data = trend[range];
@@ -40,10 +41,10 @@ function Dashboard() {
   };
 
   const stats = [
-    { label: "Total Revenue", value: "₹32,450", pct: "8.2%", icon: IndianRupee, color: "var(--chart-1)" },
+    { label: "Total Revenue", value: "Kz 3.245.000", pct: "8.2%", icon: Banknote, color: "var(--chart-1)" },
     { label: "Total Orders", value: "168", pct: "6.2%", icon: ShoppingBag, color: "var(--chart-1)" },
     { label: "New Customers", value: "52", pct: "4.1%", icon: UserPlus, color: "var(--chart-2)" },
-    { label: "Average Order Value", value: "₹193", pct: "3.7%", icon: ShoppingCart, color: "var(--chart-4)" },
+    { label: "Average Order Value", value: "Kz 19.300", pct: "3.7%", icon: ShoppingCart, color: "var(--chart-4)" },
   ];
   const status = [
     { l: "Completed", n: 108, p: 64, c: "var(--chart-2)" },
@@ -83,7 +84,7 @@ function Dashboard() {
       <div className="mt-4 grid gap-4 xl:grid-cols-5">
         <Card className="xl:col-span-3">
           <div className="flex items-center justify-between"><h3 className="font-semibold">Revenue & Orders Trend</h3>
-            <div className="flex gap-3 text-xs"><span className="text-primary">— Revenue (₹)</span><span className="text-success">— Orders</span></div></div>
+            <div className="flex gap-3 text-xs"><span className="text-primary">— Revenue (Kz)</span><span className="text-success">— Orders</span></div></div>
           <div className="mt-3 flex gap-2">
             {(["today", "week", "month"] as Range[]).map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-full border px-3 py-1 text-xs font-medium ${range === r ? "border-primary bg-accent text-primary" : ""}`}>
@@ -109,9 +110,9 @@ function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-accent p-3 text-xs md:grid-cols-4">
-            <div>Revenue<p className="text-sm font-bold">{inr(totals.rev)}</p></div>
+            <div>Revenue<p className="text-sm font-bold">{kz(totals.rev)}</p></div>
             <div>Orders<p className="text-sm font-bold">{totals.ord}</p></div>
-            <div>Peak Revenue<p className="text-sm font-bold">{inr(totals.peak.revenue)} @ {totals.peak.label}</p></div>
+            <div>Peak Revenue<p className="text-sm font-bold">{kz(totals.peak.revenue)} @ {totals.peak.label}</p></div>
             <div>Peak Orders<p className="text-sm font-bold">{totals.peak.orders} @ {totals.peak.label}</p></div>
           </div>
         </Card>
@@ -144,7 +145,7 @@ function Dashboard() {
                 <span className="grid h-5 w-5 place-items-center rounded-full bg-success text-[10px] text-primary-foreground">{i + 1}</span>
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-accent text-lg">{d.emoji}</span>
                 <div className="flex-1"><p className="font-medium">{d.name}</p><p className="text-xs text-muted-foreground">{d.orders} Orders</p></div>
-                <span className="font-semibold">{inr(d.orders * d.price)}</span>
+                <span className="font-semibold">{kz(d.orders * d.price)}</span>
               </li>
             ))}
             {!shown.length && <p className="text-sm text-muted-foreground">No dishes found.</p>}
@@ -164,7 +165,7 @@ function Dashboard() {
           <div className="grid grid-cols-2 overflow-hidden rounded-xl border text-sm">
             <div className="border-b border-r p-3"><p className="text-xs text-muted-foreground">Revenue</p><p className="font-bold text-success">↑ 8.2%</p><p className="text-xs">vs Yesterday</p></div>
             <div className="border-b p-3"><p className="text-xs text-muted-foreground">Top Item</p><p className="font-bold">{shown[0]?.name ?? "-"}</p></div>
-            <div className="border-r p-3"><p className="text-xs text-muted-foreground">Best Seller</p><p className="font-bold">Chicken Biryani</p></div>
+            <div className="border-r p-3"><p className="text-xs text-muted-foreground">Best Seller</p><p className="font-bold">Muamba de Galinha</p></div>
             <div className="p-3"><p className="text-xs text-muted-foreground">Peak Hour</p><p className="font-bold">1:00 PM – 2:00 PM</p></div>
           </div>
           <p className="mt-3 rounded-lg bg-accent p-2 text-center text-xs">Keep going! You're performing great today. 🎉</p>
@@ -186,7 +187,7 @@ function AddItem({ onClose, onAdd }: { onClose: () => void; onAdd: (d: Dish) => 
         className="w-full max-w-sm space-y-3 rounded-2xl bg-card p-6 shadow-card">
         <div className="flex items-center justify-between"><h3 className="font-semibold">Add Menu Item</h3><button type="button" onClick={onClose}><X className="h-4 w-4" /></button></div>
         <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Dish name" className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
-        <input required type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (₹)" className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
+        <input required type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (Kz)" className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
         <input type="number" min={0} value={orders} onChange={(e) => setOrders(e.target.value)} placeholder="Orders so far" className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
         <button className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground">Add Item</button>
       </form>

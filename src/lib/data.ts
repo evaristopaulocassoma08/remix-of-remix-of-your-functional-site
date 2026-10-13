@@ -4,17 +4,17 @@ const hours = ["12 AM", "2 AM", "4 AM", "6 AM", "8 AM", "10 AM", "12 PM", "2 PM"
 export const trend: Record<Range, { label: string; revenue: number; orders: number }[]> = {
   today: hours.map((label, i) => ({
     label,
-    revenue: [800, 600, 900, 1500, 2300, 3600, 5600, 4200, 2600, 3500, 3200, 1800][i]!,
+    revenue: [80000, 60000, 90000, 150000, 230000, 360000, 560000, 420000, 260000, 350000, 320000, 180000][i]!,
     orders: [3, 2, 4, 7, 11, 18, 28, 21, 12, 17, 15, 8][i]!,
   })),
   week: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label, i) => ({
     label,
-    revenue: [21000, 24500, 19800, 27300, 32450, 38900, 35200][i]!,
+    revenue: [2100000, 2450000, 1980000, 2730000, 3245000, 3890000, 3520000][i]!,
     orders: [110, 128, 102, 141, 168, 201, 183][i]!,
   })),
   month: ["W1", "W2", "W3", "W4"].map((label, i) => ({
     label,
-    revenue: [152000, 171500, 165300, 198700][i]!,
+    revenue: [15200000, 17150000, 16530000, 19870000][i]!,
     orders: [790, 902, 861, 1040][i]!,
   })),
 };
@@ -28,21 +28,22 @@ export const categories = [
 
 export type Dish = { id: string; name: string; orders: number; price: number; emoji: string; category: string };
 export const dishes: Dish[] = [
-  { id: "1", name: "Paneer Butter Masala", orders: 124, price: 52, emoji: "🍛", category: "Main Course" },
-  { id: "2", name: "Chicken Biryani", orders: 98, price: 59, emoji: "🍚", category: "Main Course" },
-  { id: "3", name: "Veg Pizza", orders: 76, price: 56, emoji: "🍕", category: "Snacks" },
-  { id: "4", name: "Masala Dosa", orders: 65, price: 48, emoji: "🥞", category: "Snacks" },
-  { id: "5", name: "Chocolate Lava Cake", orders: 54, price: 42, emoji: "🍰", category: "Desserts" },
-  { id: "6", name: "Mango Lassi", orders: 41, price: 25, emoji: "🥭", category: "Beverages" },
+  { id: "1", name: "Mufete de Cacusso", orders: 124, price: 5200, emoji: "🐟", category: "Main Course" },
+  { id: "2", name: "Muamba de Galinha", orders: 98, price: 5900, emoji: "🍛", category: "Main Course" },
+  { id: "3", name: "Funje com Carne Seca", orders: 76, price: 4500, emoji: "🍚", category: "Main Course" },
+  { id: "4", name: "Pastéis de Bacalhau", orders: 65, price: 1800, emoji: "🥟", category: "Snacks" },
+  { id: "5", name: "Pudim de Leite", orders: 54, price: 2200, emoji: "🍮", category: "Desserts" },
+  { id: "6", name: "Sumo de Múcua", orders: 41, price: 1200, emoji: "🥤", category: "Beverages" },
 ];
 
 export type OrderStatus = "Completed" | "Preparing" | "Pending" | "Cancelled";
-export const orders = Array.from({ length: 24 }, (_, i) => {
+export type Order = { id: string; customer: string; dish: string; amount: number; status: OrderStatus; time: string };
+export const orders: Order[] = Array.from({ length: 24 }, (_, i) => {
   const d = dishes[i % dishes.length]!;
   const st: OrderStatus[] = ["Completed", "Completed", "Preparing", "Completed", "Pending", "Cancelled"];
   return {
     id: `#ORD-${1040 + i}`,
-    customer: ["Aarav", "Diya", "Kabir", "Meera", "Rohan", "Ananya", "Vihaan", "Sara"][i % 8]!,
+    customer: ["Nádia", "Mário", "Luísa", "Kiala", "Pedro", "Esperança", "José", "Marta"][i % 8]!,
     dish: d.name,
     amount: d.price * (1 + (i % 3)),
     status: st[i % st.length]!,
@@ -50,24 +51,35 @@ export const orders = Array.from({ length: 24 }, (_, i) => {
   };
 });
 
-export const customers = ["Aarav Shah", "Diya Patel", "Kabir Rao", "Meera Iyer", "Rohan Das", "Ananya Gupta", "Vihaan Mehta", "Sara Khan"].map(
-  (name, i) => ({ name, orders: 30 - i * 3, spent: 4200 - i * 410, joined: `${i + 2} Jun 2026` }),
+export type Customer = { name: string; orders: number; spent: number; joined: string };
+export const customers: Customer[] = ["Nádia Silva", "Mário Santos", "Luísa Ferreira", "Kiala Neto", "Pedro Domingos", "Esperança Costa", "José Manuel", "Marta Cardoso"].map(
+  (name, i) => ({ name, orders: 30 - i * 3, spent: 420000 - i * 41000, joined: `${i + 2} Jun 2026` }),
 );
 
-export const inventory = [
-  { item: "Paneer", stock: 12, unit: "kg", min: 5 },
-  { item: "Basmati Rice", stock: 40, unit: "kg", min: 15 },
-  { item: "Chicken", stock: 4, unit: "kg", min: 8 },
-  { item: "Tomatoes", stock: 18, unit: "kg", min: 10 },
-  { item: "Cheese", stock: 3, unit: "kg", min: 4 },
-  { item: "Milk", stock: 25, unit: "L", min: 10 },
+export type StockItem = { item: string; stock: number; unit: string; min: number };
+export const inventory: StockItem[] = [
+  { item: "Peixe Cacusso", stock: 12, unit: "kg", min: 5 },
+  { item: "Fuba de Bombó", stock: 40, unit: "kg", min: 15 },
+  { item: "Galinha", stock: 4, unit: "kg", min: 8 },
+  { item: "Tomate", stock: 18, unit: "kg", min: 10 },
+  { item: "Óleo de Palma", stock: 3, unit: "L", min: 4 },
+  { item: "Leite", stock: 25, unit: "L", min: 10 },
 ];
 
-export const reviews = [
-  { name: "Diya", rating: 5, text: "Best biryani in town! Super fast delivery." },
-  { name: "Kabir", rating: 4, text: "Paneer butter masala was rich and creamy." },
-  { name: "Meera", rating: 3, text: "Pizza was good but arrived a bit cold." },
-  { name: "Rohan", rating: 5, text: "Lava cake is unreal. Will order again." },
+export type Review = { name: string; rating: number; text: string };
+export const reviews: Review[] = [
+  { name: "Luísa", rating: 5, text: "A melhor muamba da cidade! Entrega super rápida." },
+  { name: "Kiala", rating: 4, text: "O mufete estava rico e bem temperado." },
+  { name: "Pedro", rating: 3, text: "Os pastéis estavam bons mas chegaram um pouco frios." },
+  { name: "Esperança", rating: 5, text: "O pudim é incrível. Vou pedir de novo." },
 ];
 
-export const inr = (n: number) => "₹" + n.toLocaleString("en-IN");
+export type Campaign = { id: string; name: string; channel: string; budget: number; status: "Active" | "Paused" | "Draft" };
+export const campaigns: Campaign[] = [
+  { id: "1", name: "Almoço de Sexta -10%", channel: "WhatsApp", budget: 50000, status: "Active" },
+  { id: "2", name: "Menu Família Fim-de-Semana", channel: "Instagram", budget: 80000, status: "Active" },
+  { id: "3", name: "Entrega Grátis Maianga", channel: "SMS", budget: 30000, status: "Paused" },
+];
+
+/** Format a number as Angolan Kwanza: Kz 1.250.000 */
+export const kz = (n: number) => "Kz " + Math.round(n).toLocaleString("pt-AO");

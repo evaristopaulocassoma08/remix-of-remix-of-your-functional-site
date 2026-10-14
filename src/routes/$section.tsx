@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Plus, Trash2, Pencil, X, Download, Minus } from "lucide-react";
 import { Shell, Card, nav } from "@/components/Shell";
 import { usePersistent } from "@/lib/store";
@@ -111,6 +111,8 @@ function Orders({ q }: { q: string }) {
 /* ---------------- Menu items ---------------- */
 function MenuItems({ q }: { q: string }) {
   const [list, setList] = usePersistent<Dish[]>("dishes", seedDishes);
+  const [catList] = useCats();
+  const CATS = catList.map((c) => c.name);
   const [cat, setCat] = useState("All");
   const [edit, setEdit] = useState<Dish | "new" | null>(null);
   const shown = list.filter((d) => d.name.toLowerCase().includes(q.toLowerCase()) && (cat === "All" || d.category === cat));
@@ -140,16 +142,102 @@ function MenuItems({ q }: { q: string }) {
 }
 
 /* ---------------- Categories ---------------- */
-function Categories() {
-  const [dishes] = usePersistent<Dish[]>("dishes", seedDishes);
-  return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{seedCats.map((c) => {
+type Cat = { id: string; name: string; color: string; description: string; active: boolean };
+const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+const seedCatList: Cat[] = seedCats.map((c, i) => ({ id: String(i + 1), name: c.name, color: c.color, description: "", active: true }));
+function useCats() { return usePersistent<Cat[]>("categories", seedCatList); }
+
+function Categories({ q }: { q: string }) {
+  const [cats, setCats] = useCats();
+  const [dishes, setDishes] = usePersistent<Dish[]>("dishes", seedDishes);
+  const [edit, setEdit] = useState<Cat | "new" | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [sort, setSort] = useState<"name" | "revenue" | "orders">("revenue");
+  const [status, setStatus] = useState("All");
+  const cur = edit && edit !== "new" ? edit : null;
+  const rows = cats.map((c) => {
     const ds = dishes.filter((d) => d.category === c.name);
-    const rev = ds.reduce((a, d) => a + d.orders * d.price, 0);
-    return <div key={c.name} className="rounded-xl border p-4"><span className="block h-2 w-10 rounded-full" style={{ background: c.color }} />
-      <p className="mt-3 font-semibold">{c.name}</p><p className="text-sm text-muted-foreground">{ds.length} dishes · {ds.reduce((a, d) => a + d.orders, 0)} orders</p>
-      <p className="mt-1 font-bold">{kz(rev)}</p>
-      <ul className="mt-2 space-y-1 text-xs">{ds.map((d) => <li key={d.id}>{d.emoji} {d.name}</li>)}</ul></div>;
-  })}</div>;
+    return { ...c, ds, orders: ds.reduce((a, d) => a + d.orders, 0), revenue: ds.reduce((a, d) => a + d.orders * d.price, 0), avg: ds.length ? ds.reduce((a, d) => a + d.price, 0) / ds.length : 0 };
+  });
+  const totalRev = rows.reduce((a, r) => a + r.revenue, 0) || 1;
+  const shown = rows
+    .filter((r) => r.name.toLowerCase().includes(q.toLowerCase()) && (status === "All" || (status === "Active") === r.active))
+    .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : b[sort] - a[sort]);
+  const uncategorized = dishes.filter((d) => !cats.some((c) => c.name === d.category));
+  const remove = (c: Cat) => {
+    const n = dishes.filter((d) => d.category === c.name).length;
+    if (n && !confirm(`${n} dish(es) will become uncategorized. Delete "${c.name}"?`)) return;
+    setCats((l) => l.filter((x) => x.id !== c.id));
+  };
+  return (<>
+    <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Stat label="Categories" value={cats.length} />
+      <Stat label="Active" value={cats.filter((c) => c.active).length} />
+      <Stat label="Total dishes" value={dishes.length} />
+      <Stat label="Top category" value={[...rows].sort((a, b) => b.revenue - a.revenue)[0]?.name ?? "—"} />
+    </div>
+    <div className="mb-4 grid gap-4 lg:grid-cols-3">
+      <div className="h-64 rounded-xl border p-3 lg:col-span-1">
+        <p className="mb-1 text-sm font-semibold">Revenue share</p>
+        <ResponsiveContainer><PieChart><Pie data={rows.filter((r) => r.revenue)} dataKey="revenue" nameKey="name" innerRadius={45} outerRadius={80}>{rows.filter((r) => r.revenue).map((r) => <Cell key={r.id} fill={r.color} />)}</Pie><Tooltip formatter={(v) => kz(Number(v))} /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer>
+      </div>
+      <div className="h-64 rounded-xl border p-3 lg:col-span-2">
+        <p className="mb-1 text-sm font-semibold">Orders by category</p>
+        <ResponsiveContainer><BarChart data={rows}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="orders" radius={[6, 6, 0, 0]}>{rows.map((r) => <Cell key={r.id} fill={r.color} />)}</Bar></BarChart></ResponsiveContainer>
+      </div>
+    </div>
+    <Toolbar>
+      {["All", "Active", "Hidden"].map((s) => <button key={s} onClick={() => setStatus(s)} className={chip(status === s)}>{s}</button>)}
+      <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="rounded-lg border bg-background px-2 py-1.5 text-xs">
+        <option value="revenue">Sort: Revenue</option><option value="orders">Sort: Orders</option><option value="name">Sort: Name</option>
+      </select>
+      <div className="ml-auto flex gap-2">
+        <button onClick={() => csv("categories.csv", [["Category", "Dishes", "Orders", "Revenue (Kz)", "Share %", "Status"], ...rows.map((r) => [r.name, r.ds.length, r.orders, r.revenue, ((r.revenue / totalRev) * 100).toFixed(1), r.active ? "Active" : "Hidden"])])} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"><Download className="h-4 w-4" />Export</button>
+        <button onClick={() => setEdit("new")} className={btn}><Plus className="h-4 w-4" />Add Category</button>
+      </div>
+    </Toolbar>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{shown.map((c) => (
+      <div key={c.id} className={`rounded-xl border p-4 ${c.active ? "" : "opacity-60"}`}>
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full" style={{ background: c.color }} />
+          <p className="flex-1 font-semibold">{c.name}</p>
+          <button onClick={() => setCats((l) => l.map((x) => x.id === c.id ? { ...x, active: !x.active } : x))} className={chip(c.active)}>{c.active ? "Active" : "Hidden"}</button>
+          <button onClick={() => setEdit(c)} aria-label="Edit"><Pencil className="h-4 w-4" /></button>
+          <button onClick={() => remove(c)} aria-label="Delete"><Trash2 className="h-4 w-4 text-destructive" /></button>
+        </div>
+        {c.description && <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>}
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+          <div><p className="text-muted-foreground">Dishes</p><b>{c.ds.length}</b></div>
+          <div><p className="text-muted-foreground">Orders</p><b>{c.orders}</b></div>
+          <div><p className="text-muted-foreground">Avg price</p><b>{kz(c.avg)}</b></div>
+        </div>
+        <p className="mt-3 text-lg font-bold">{kz(c.revenue)}</p>
+        <div className="mt-1 h-1.5 rounded-full bg-accent"><div className="h-full rounded-full" style={{ width: `${(c.revenue / totalRev) * 100}%`, background: c.color }} /></div>
+        <p className="mt-1 text-xs text-muted-foreground">{((c.revenue / totalRev) * 100).toFixed(1)}% of revenue</p>
+        <button onClick={() => setOpen(open === c.id ? null : c.id)} className="mt-3 text-xs font-semibold text-primary">{open === c.id ? "Hide dishes" : `View dishes (${c.ds.length})`}</button>
+        {open === c.id && <ul className="mt-2 space-y-1 text-xs">{c.ds.map((d) => (
+          <li key={d.id} className="flex items-center gap-2"><span>{d.emoji}</span><span className="flex-1">{d.name}</span><span>{kz(d.price)}</span>
+            <select value={d.category} onChange={(e) => setDishes((l) => l.map((x) => x.id === d.id ? { ...x, category: e.target.value } : x))} className="rounded border bg-background text-xs" aria-label="Move to">{cats.map((k) => <option key={k.id}>{k.name}</option>)}</select></li>))}
+          {!c.ds.length && <li className="text-muted-foreground">No dishes yet.</li>}</ul>}
+      </div>))}</div>
+    {!shown.length && <p className="text-sm text-muted-foreground">No categories found.</p>}
+    {uncategorized.length > 0 && <div className="mt-4 rounded-xl border border-destructive/40 p-4 text-sm">
+      <p className="font-semibold">Uncategorized dishes ({uncategorized.length})</p>
+      <ul className="mt-2 space-y-1">{uncategorized.map((d) => <li key={d.id} className="flex items-center gap-2">{d.emoji} <span className="flex-1">{d.name}</span>
+        <select defaultValue="" onChange={(e) => setDishes((l) => l.map((x) => x.id === d.id ? { ...x, category: e.target.value } : x))} className="rounded border bg-background text-xs"><option value="" disabled>Assign…</option>{cats.map((k) => <option key={k.id}>{k.name}</option>)}</select></li>)}</ul>
+    </div>}
+    {edit && <Modal title={cur ? "Edit Category" : "Add Category"} onClose={() => setEdit(null)} onSubmit={(f) => {
+      const name = String(f.get("name")).trim();
+      if (cats.some((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== cur?.id)) { alert("A category with this name already exists."); return; }
+      const c: Cat = { id: cur?.id ?? crypto.randomUUID(), name, color: String(f.get("color")), description: String(f.get("description") || ""), active: cur?.active ?? true };
+      if (cur && cur.name !== name) setDishes((l) => l.map((d) => d.category === cur.name ? { ...d, category: name } : d));
+      setCats((l) => cur ? l.map((x) => x.id === c.id ? c : x) : [...l, c]); setEdit(null);
+    }}>
+      <input name="name" required defaultValue={cur?.name} placeholder="Category name" className={inp} />
+      <textarea name="description" defaultValue={cur?.description} placeholder="Description (optional)" className={inp} />
+      <div className="flex gap-3">{COLORS.map((col, i) => <label key={col} className="flex items-center gap-1"><input type="radio" name="color" value={col} defaultChecked={(cur?.color ?? COLORS[0]) === col || (!cur && i === 0)} /><span className="h-5 w-5 rounded-full" style={{ background: col }} /></label>)}</div>
+    </Modal>}
+  </>);
 }
 
 /* ---------------- Customers ---------------- */
@@ -212,14 +300,92 @@ function Inventory({ q }: { q: string }) {
 }
 
 /* ---------------- Analytics ---------------- */
+const RANGE_LABEL: Record<Range, string> = { today: "Today", week: "This Week", month: "This Month" };
+const PREV_FACTOR: Record<Range, number> = { today: 0.91, week: 0.87, month: 0.94 };
+function Delta({ now, prev }: { now: number; prev: number }) {
+  const p = prev ? ((now - prev) / prev) * 100 : 0;
+  return <span className={`text-xs font-semibold ${p >= 0 ? "text-primary" : "text-destructive"}`}>{p >= 0 ? "▲" : "▼"} {Math.abs(p).toFixed(1)}% vs previous</span>;
+}
+function Kpi({ label, value, now, prev }: { label: string; value: ReactNode; now: number; prev: number }) {
+  return <div className="rounded-xl bg-accent p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="text-lg font-bold">{value}</p><Delta now={now} prev={prev} /></div>;
+}
 function Analytics() {
   const [range, setRange] = useState<Range>("week");
+  const [metric, setMetric] = useState<"revenue" | "orders" | "both">("both");
+  const [chartType, setChartType] = useState<"bar" | "line">("bar");
+  const [orders] = usePersistent<Order[]>("orders", seedOrders);
+  const [dishes] = usePersistent<Dish[]>("dishes", seedDishes);
+  const [custs] = usePersistent<Customer[]>("customers", seedCustomers);
+  const [cats] = useCats();
   const data = trend[range];
+  const f = PREV_FACTOR[range];
   const rev = data.reduce((a, d) => a + d.revenue, 0), ord = data.reduce((a, d) => a + d.orders, 0);
+  const prevRev = rev * f, prevOrd = Math.round(ord * (f + 0.03));
+  const peak = [...data].sort((a, b) => b.revenue - a.revenue)[0]!;
+  const done = orders.filter((o) => o.status === "Completed").length;
+  const cancelled = orders.filter((o) => o.status === "Cancelled").length;
+  const statusData = STATUSES.map((s, i) => ({ name: s, value: orders.filter((o) => o.status === s).length, color: COLORS[i] }));
+  const catData = cats.map((c) => ({ name: c.name, color: c.color, value: dishes.filter((d) => d.category === c.name).reduce((a, d) => a + d.orders * d.price, 0) })).filter((c) => c.value);
+  const top = [...dishes].sort((a, b) => b.orders * b.price - a.orders * a.price).slice(0, 5);
+  const topRev = top[0] ? top[0].orders * top[0].price : 1;
+  const series = metric === "both" ? ["revenue", "orders"] : [metric];
+  const exportCsv = () => csv(`analytics-${range}.csv`, [
+    ["Period", "Revenue (Kz)", "Orders", "Avg order (Kz)"], ...data.map((d) => [d.label, d.revenue, d.orders, Math.round(d.revenue / d.orders)]),
+    [], ["Total", rev, ord, Math.round(rev / ord)], [], ["Top dish", "Orders", "Revenue (Kz)"], ...top.map((d) => [d.name, d.orders, d.orders * d.price]),
+  ]);
+  const Chart = chartType === "bar" ? BarChart : LineChart;
   return (<>
-    <Toolbar>{(["today", "week", "month"] as Range[]).map((r) => <button key={r} onClick={() => setRange(r)} className={chip(range === r)}>{r === "today" ? "Today" : r === "week" ? "This Week" : "This Month"}</button>)}</Toolbar>
-    <div className="mb-4 grid grid-cols-3 gap-3"><Stat label="Revenue" value={kz(rev)} /><Stat label="Orders" value={ord} /><Stat label="Avg order" value={kz(rev / ord)} /></div>
-    <div className="h-72"><ResponsiveContainer><BarChart data={data}><CartesianGrid strokeDasharray="3 3" stroke="var(--border)" /><XAxis dataKey="label" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} /><Tooltip formatter={(v) => kz(Number(v))} /><Bar dataKey="revenue" fill="var(--chart-1)" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+    <Toolbar>
+      {(["today", "week", "month"] as Range[]).map((r) => <button key={r} onClick={() => setRange(r)} className={chip(range === r)}>{RANGE_LABEL[r]}</button>)}
+      <span className="mx-2 h-5 w-px bg-border" />
+      {(["both", "revenue", "orders"] as const).map((m) => <button key={m} onClick={() => setMetric(m)} className={chip(metric === m)}>{m === "both" ? "Revenue + Orders" : m[0]!.toUpperCase() + m.slice(1)}</button>)}
+      <span className="mx-2 h-5 w-px bg-border" />
+      {(["bar", "line"] as const).map((t) => <button key={t} onClick={() => setChartType(t)} className={chip(chartType === t)}>{t === "bar" ? "Bars" : "Lines"}</button>)}
+      <div className="ml-auto flex gap-2">
+        <button onClick={() => window.print()} className="rounded-lg border px-3 py-2 text-sm">Print</button>
+        <button onClick={exportCsv} className={btn}><Download className="h-4 w-4" />Export CSV</button>
+      </div>
+    </Toolbar>
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <Kpi label="Revenue" value={kz(rev)} now={rev} prev={prevRev} />
+      <Kpi label="Orders" value={ord} now={ord} prev={prevOrd} />
+      <Kpi label="Avg order value" value={kz(rev / ord)} now={rev / ord} prev={prevRev / prevOrd} />
+      <Kpi label="Customers" value={custs.length} now={custs.length} prev={Math.max(1, custs.length - 1)} />
+    </div>
+    <div className="mb-4 rounded-xl border p-3">
+      <div className="mb-2 flex flex-wrap justify-between text-sm"><p className="font-semibold">Performance — {RANGE_LABEL[range]}</p><p className="text-muted-foreground">Peak: <b className="text-foreground">{peak.label}</b> ({kz(peak.revenue)})</p></div>
+      <div className="h-72"><ResponsiveContainer><Chart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" /><XAxis dataKey="label" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="revenue" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} hide={metric === "orders"} />
+        <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 11 }} hide={metric === "revenue"} />
+        <Tooltip formatter={(v, n) => n === "revenue" ? kz(Number(v)) : String(v)} /><Legend wrapperStyle={{ fontSize: 11 }} />
+        {series.map((s) => chartType === "bar"
+          ? <Bar key={s} yAxisId={s} dataKey={s} fill={s === "revenue" ? "var(--chart-1)" : "var(--chart-2)"} radius={[6, 6, 0, 0]} />
+          : <Line key={s} yAxisId={s} dataKey={s} type="monotone" stroke={s === "revenue" ? "var(--chart-1)" : "var(--chart-2)"} strokeWidth={2} />)}
+      </Chart></ResponsiveContainer></div>
+    </div>
+    <div className="mb-4 grid gap-4 lg:grid-cols-3">
+      <div className="h-64 rounded-xl border p-3"><p className="text-sm font-semibold">Revenue by category</p>
+        <ResponsiveContainer><PieChart><Pie data={catData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={70}>{catData.map((c) => <Cell key={c.name} fill={c.color} />)}</Pie><Tooltip formatter={(v) => kz(Number(v))} /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer></div>
+      <div className="h-64 rounded-xl border p-3"><p className="text-sm font-semibold">Order status</p>
+        <ResponsiveContainer><PieChart><Pie data={statusData} dataKey="value" nameKey="name" outerRadius={70}>{statusData.map((s) => <Cell key={s.name} fill={s.color} />)}</Pie><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer></div>
+      <div className="rounded-xl border p-3 text-sm"><p className="mb-3 font-semibold">Operational metrics</p>
+        <ul className="space-y-3">
+          <li className="flex justify-between"><span className="text-muted-foreground">Completion rate</span><b>{orders.length ? ((done / orders.length) * 100).toFixed(1) : 0}%</b></li>
+          <li className="flex justify-between"><span className="text-muted-foreground">Cancellation rate</span><b>{orders.length ? ((cancelled / orders.length) * 100).toFixed(1) : 0}%</b></li>
+          <li className="flex justify-between"><span className="text-muted-foreground">Orders per customer</span><b>{custs.length ? (custs.reduce((a, c) => a + c.orders, 0) / custs.length).toFixed(1) : 0}</b></li>
+          <li className="flex justify-between"><span className="text-muted-foreground">Avg customer spend</span><b>{kz(custs.length ? custs.reduce((a, c) => a + c.spent, 0) / custs.length : 0)}</b></li>
+          <li className="flex justify-between"><span className="text-muted-foreground">Projected next period</span><b>{kz(rev * (2 - f))}</b></li>
+        </ul></div>
+    </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="rounded-xl border p-3"><p className="mb-2 text-sm font-semibold">Top dishes by revenue</p>
+        <ul className="space-y-2 text-sm">{top.map((d, i) => <li key={d.id}><div className="flex justify-between"><span>{i + 1}. {d.emoji} {d.name}</span><b>{kz(d.orders * d.price)}</b></div>
+          <div className="mt-1 h-1.5 rounded-full bg-accent"><div className="h-full rounded-full bg-primary" style={{ width: `${(d.orders * d.price / topRev) * 100}%` }} /></div></li>)}</ul></div>
+      <div className="overflow-x-auto rounded-xl border p-3"><p className="mb-2 text-sm font-semibold">Breakdown — {RANGE_LABEL[range]}</p>
+        <table className="w-full"><thead><tr><th className={th}>Period</th><th className={th}>Revenue</th><th className={th}>Orders</th><th className={th}>Avg</th></tr></thead>
+          <tbody>{data.map((d) => <tr key={d.label}><td className={td}>{d.label}</td><td className={td}>{kz(d.revenue)}</td><td className={td}>{d.orders}</td><td className={td}>{kz(d.revenue / d.orders)}</td></tr>)}</tbody></table></div>
+    </div>
   </>);
 }
 
@@ -323,7 +489,7 @@ function Section() {
   const label = nav.find((n) => n.to === "/" + section)!.label;
   const [q, setQ] = useState("");
   const pages: Record<string, ReactNode> = {
-    orders: <Orders q={q} />, "menu-items": <MenuItems q={q} />, categories: <Categories />, customers: <Customers q={q} />,
+    orders: <Orders q={q} />, "menu-items": <MenuItems q={q} />, categories: <Categories q={q} />, customers: <Customers q={q} />,
     inventory: <Inventory q={q} />, analytics: <Analytics />, reports: <Reports />, marketing: <Marketing />, reviews: <Reviews />, settings: <SettingsPage />,
   };
   return (
